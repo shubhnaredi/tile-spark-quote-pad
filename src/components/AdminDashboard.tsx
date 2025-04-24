@@ -7,7 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Customer, MOCK_CUSTOMERS, Room, RoomSelection } from '@/types';
-import { Search, Star, Clipboard, Truck, Check, X } from "lucide-react";
+import { Search, Star, Clipboard, Truck, Check, X, Phone } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { 
   Select,
