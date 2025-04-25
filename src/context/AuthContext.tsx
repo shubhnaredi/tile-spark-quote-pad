@@ -1,88 +1,113 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import type { User } from '@supabase/supabase-js';
 
-// Define user roles
 export type UserRole = 'sales' | 'admin';
 
-// Define user type
-export interface User {
+export interface UserProfile {
   id: string;
-  name: string;
+  name: string | null;
   role: UserRole;
-  phone?: string;
+  phone: string | null;
 }
 
 interface AuthContextType {
-  currentUser: User | null;
+  user: User | null;
+  profile: UserProfile | null;
   loading: boolean;
-  login: (userId: string, password: string) => Promise<void>;
-  logout: () => void;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, name: string) => Promise<void>;
+  signOut: () => Promise<void>;
   isAdmin: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demo (in production this would come from Supabase)
-const MOCK_USERS: User[] = [
-  { id: '1', name: 'Shubh', role: 'sales', phone: '9876543210' },
-  { id: '2', name: 'Admin', role: 'admin', phone: '9876543211' },
-];
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Check for existing session on mount
   useEffect(() => {
-    const savedUser = localStorage.getItem('tileapp_user');
-    if (savedUser) {
-      try {
-        setCurrentUser(JSON.parse(savedUser));
-      } catch (e) {
-        console.error("Failed to parse saved user:", e);
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          setProfile(profile);
+        } else {
+          setProfile(null);
+        }
       }
-    }
-    setLoading(false);
+    );
+
+    // Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+          .then(({ data }) => {
+            setProfile(data);
+            setLoading(false);
+          });
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  // Simple login function (in production, this would validate against Supabase)
-  const login = async (userId: string, password: string) => {
-    setLoading(true);
-    try {
-      // Mock authentication
-      // In production, this would call Supabase auth
-      const user = MOCK_USERS.find(u => u.id === userId);
-      
-      if (!user) {
-        throw new Error("Invalid credentials");
-      }
-      
-      setCurrentUser(user);
-      // Save to local storage
-      localStorage.setItem('tileapp_user', JSON.stringify(user));
-    } catch (error) {
-      console.error("Login failed:", error);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) throw error;
   };
 
-  const logout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('tileapp_user');
+  const signUp = async (email: string, password: string, name: string) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+        },
+      },
+    });
+    if (error) throw error;
+  };
+
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   };
 
   const isAdmin = () => {
-    return currentUser?.role === 'admin';
+    return profile?.role === 'admin';
   };
 
   const value = {
-    currentUser,
+    user,
+    profile,
     loading,
-    login,
-    logout,
-    isAdmin
+    signIn,
+    signUp,
+    signOut,
+    isAdmin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
