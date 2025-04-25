@@ -36,7 +36,7 @@ export function RoomTileSelector({ roomName, sqft, onAddTile }: RoomProps) {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [selectedTiles, setSelectedTiles] = useState<Tile[]>([]);
   const { toast } = useToast();
-  const { currentUser, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const { data: tiles = [] } = useTiles();
   
   const handleScanSuccess = (barcode: string) => {
@@ -291,6 +291,7 @@ export function RoomSelector() {
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomSqft, setNewRoomSqft] = useState<number | ''>('');
   const { toast } = useToast();
+  const { user } = useAuth();
   const addRoomMutation = useAddRoom();
 
   const handleAddRoom = () => {

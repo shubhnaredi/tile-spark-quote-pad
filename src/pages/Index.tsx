@@ -5,11 +5,11 @@ import { useAuth } from '@/context/AuthContext';
 import { Separator } from "@/components/ui/separator";
 
 const Index = () => {
-  const { currentUser, isAdmin, logout } = useAuth();
+  const { user, profile, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   
   // Redirect to login if not authenticated
-  if (!currentUser) {
+  if (!user) {
     navigate('/login');
     return null;
   }
@@ -22,13 +22,13 @@ const Index = () => {
             Tile Showroom App
           </h1>
           <p className="text-gray-500">
-            Welcome, {currentUser?.name}
+            Welcome, {profile?.name}
           </p>
         </div>
         <Button 
           variant="outline" 
           onClick={() => {
-            logout();
+            signOut();
             navigate('/login');
           }}
           className="mt-4 md:mt-0"

@@ -45,7 +45,7 @@ export function CustomerIntakeForm() {
   const [uploading, setUploading] = useState(false);
   const [hasChitPhoto, setHasChitPhoto] = useState(false);
   const [chitImageUrl, setChitImageUrl] = useState<string | undefined>(undefined);
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const addCustomer = useAddCustomer();
@@ -59,7 +59,7 @@ export function CustomerIntakeForm() {
         area: data.area,
         has_chit_photo: hasChitPhoto,
         chit_image_url: chitImageUrl,
-        salesperson_id: currentUser?.id || '',
+        salesperson_id: user?.id || '',
         visit_date: format(date, 'yyyy-MM-dd')
       };
       

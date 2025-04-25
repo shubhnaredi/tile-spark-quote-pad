@@ -35,12 +35,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       async (event, session) => {
         setUser(session?.user ?? null);
         if (session?.user) {
-          const { data: profile } = await supabase
+          const { data: profileData } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single();
-          setProfile(profile);
+          
+          if (profileData) {
+            setProfile({
+              id: profileData.id,
+              name: profileData.name,
+              role: profileData.role as UserRole,
+              phone: profileData.phone
+            });
+          }
         } else {
           setProfile(null);
         }
@@ -56,8 +64,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .select('*')
           .eq('id', session.user.id)
           .single()
-          .then(({ data }) => {
-            setProfile(data);
+          .then(({ data: profileData }) => {
+            if (profileData) {
+              setProfile({
+                id: profileData.id,
+                name: profileData.name,
+                role: profileData.role as UserRole,
+                phone: profileData.phone
+              });
+            }
             setLoading(false);
           });
       } else {
