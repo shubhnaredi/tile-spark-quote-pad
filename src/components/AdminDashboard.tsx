@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { Customer, MOCK_CUSTOMERS, Room, RoomSelection } from '@/types';
+import { Customer, TileSelection } from '@/types';
 import { Search, Star, Clipboard, Truck, Check, X, Phone } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -16,85 +16,47 @@ import {
   SelectTrigger,
   SelectValue, 
 } from '@/components/ui/select';
-
-// Mock data for demonstration
-const MOCK_ROOMS: Room[] = [
-  {
-    id: '1',
-    customerId: '1',
-    roomName: 'Master Bedroom',
-    totalSqft: 180,
-    createdBy: '1',
-  },
-  {
-    id: '2',
-    customerId: '1',
-    roomName: 'Kitchen',
-    totalSqft: 120,
-    createdBy: '1',
-  }
-];
-
-const MOCK_SELECTIONS: RoomSelection[] = [
-  {
-    id: '1',
-    roomId: '1',
-    tileId: '1',
-    enteredRate: 85,
-    calculatedBoxes: 12,
-    estimatedPrice: 16320,
-    starred: true,
-    tile: {
-      id: '1',
-      tileName: 'Marble Elegance',
-      tileSize: '60x60',
-      ratePerSqft: 85,
-      piecesPerBox: 4,
-      sqftPerBox: 16,
-      qrCode: 'ME6060',
-      imageURL: 'https://via.placeholder.com/100?text=Marble',
-      isActive: true
-    }
-  },
-  {
-    id: '2',
-    roomId: '2',
-    tileId: '3',
-    enteredRate: 135,
-    calculatedBoxes: 8,
-    estimatedPrice: 16740,
-    starred: true,
-    tile: {
-      id: '3',
-      tileName: 'Modern Grey',
-      tileSize: '60x120',
-      ratePerSqft: 135,
-      piecesPerBox: 2,
-      sqftPerBox: 15.5,
-      qrCode: 'MG60120',
-      imageURL: 'https://via.placeholder.com/100?text=Grey',
-      isActive: true
-    }
-  }
-];
+import { useCustomers, useCustomerRooms, useRoomSelections } from '@/hooks/useSupabaseQuery';
+import { useUpdateTileSelection } from '@/hooks/useSupabaseMutation';
 
 interface AdminAdjustmentFormProps {
-  selection: RoomSelection;
+  selection: TileSelection;
 }
 
 function AdminAdjustmentForm({ selection }: AdminAdjustmentFormProps) {
-  const [adjustedBoxes, setAdjustedBoxes] = useState<number>(selection.calculatedBoxes);
-  const [fillerQty, setFillerQty] = useState<number>(0);
-  const [transport, setTransport] = useState<number>(0);
-  const [notes, setNotes] = useState<string>('');
-  const [status, setStatus] = useState<'Draft' | 'Reviewed' | 'Billed'>('Draft');
+  const [adjustedBoxes, setAdjustedBoxes] = useState<number>(selection.admin_adjusted_boxes || 
+    Math.ceil(selection.sqft_required / (selection.tile?.sqft_per_box || 1)));
+  const [fillerQty, setFillerQty] = useState<number>(selection.filler_quantity || 0);
+  const [transport, setTransport] = useState<number>(selection.transport_charge || 0);
+  const [notes, setNotes] = useState<string>(selection.admin_notes || '');
+  const [status, setStatus] = useState<'Draft' | 'Reviewed' | 'Billed'>(
+    selection.status as 'Draft' | 'Reviewed' | 'Billed'
+  );
   const { toast } = useToast();
+  const updateSelection = useUpdateTileSelection();
 
   const handleSave = () => {
-    // In production, this would save to Supabase
-    toast({
-      title: "Changes Saved",
-      description: `Adjustments for ${selection.tile?.tileName} have been saved.`
+    updateSelection.mutate({
+      id: selection.id,
+      admin_adjusted_boxes: adjustedBoxes,
+      filler_quantity: fillerQty,
+      transport_charge: transport,
+      admin_notes: notes,
+      status: status
+    }, {
+      onSuccess: () => {
+        toast({
+          title: "Changes Saved",
+          description: `Adjustments for ${selection.tile?.tile_name} have been saved.`
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: "Error Saving Changes",
+          description: error.message || "An error occurred while saving changes.",
+          variant: "destructive"
+        });
+      }
     });
   };
 
@@ -105,10 +67,10 @@ function AdminAdjustmentForm({ selection }: AdminAdjustmentFormProps) {
           <div>
             <h3 className="font-medium flex items-center">
               <Star className="h-4 w-4 fill-yellow-500 text-yellow-500 mr-1" />
-              {selection.tile?.tileName}
+              {selection.tile?.tile_name}
             </h3>
             <p className="text-sm text-gray-500">
-              {selection.tile?.tileSize} cm • Original calculation: {selection.calculatedBoxes} boxes
+              {selection.tile?.size} cm • Original calculation: {Math.ceil(selection.sqft_required / (selection.tile?.sqft_per_box || 1))} boxes
             </p>
           </div>
           <Badge 
@@ -199,28 +161,29 @@ function AdminAdjustmentForm({ selection }: AdminAdjustmentFormProps) {
 export function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const { data: customers = [], isLoading: isLoadingCustomers } = useCustomers();
+  const { data: rooms = [] } = useCustomerRooms(selectedCustomer?.id || '');
+  const roomIds = rooms.map(room => room.id);
+  
+  // This is a simplification - in a real app, you would fetch selections for each room
+  const [activeRoomId, setActiveRoomId] = useState<string>('');
+  const { data: selections = [] } = useRoomSelections(activeRoomId);
 
   const handleCustomerSelect = (customerId: string) => {
-    const customer = MOCK_CUSTOMERS.find(c => c.id === customerId);
+    const customer = customers.find(c => c.id === customerId);
     setSelectedCustomer(customer || null);
+    
+    // Reset room selections when changing customer
+    setActiveRoomId('');
   };
   
   // Filtered customers based on search
   const filteredCustomers = searchQuery.trim() === '' 
-    ? MOCK_CUSTOMERS 
-    : MOCK_CUSTOMERS.filter(customer => 
+    ? customers 
+    : customers.filter(customer => 
         customer.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
         customer.phone.includes(searchQuery)
       );
-
-  // Get selections for the selected customer
-  const getSelectionsForCustomer = () => {
-    if (!selectedCustomer) return [];
-    
-    // In a real app, we would filter based on the customer ID
-    // Here we're just returning mock data
-    return MOCK_SELECTIONS;
-  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -240,7 +203,11 @@ export function AdminDashboard() {
           </div>
 
           <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-            {filteredCustomers.length === 0 ? (
+            {isLoadingCustomers ? (
+              <div className="text-center py-8 text-gray-500">
+                Loading customers...
+              </div>
+            ) : filteredCustomers.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 No customers found
               </div>
@@ -286,24 +253,45 @@ export function AdminDashboard() {
                 </div>
                 <div>
                   <p className="text-sm font-medium">Visit Date</p>
-                  <p className="text-gray-600">{new Date(selectedCustomer.dateOfVisit).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Total Area</p>
-                  <p className="text-gray-600">{selectedCustomer.totalSqft || 'Not specified'} sq.ft</p>
+                  <p className="text-gray-600">{new Date(selectedCustomer.visit_date).toLocaleDateString()}</p>
                 </div>
               </div>
               
               <Separator className="my-6" />
+
+              {rooms.length > 0 && (
+                <div className="mb-6">
+                  <label className="text-sm font-medium mb-2 block">Select Room</label>
+                  <Select
+                    value={activeRoomId}
+                    onValueChange={setActiveRoomId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a room" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {rooms.map(room => (
+                        <SelectItem key={room.id} value={room.id}>
+                          {room.room_name} ({room.total_sqft} sq.ft)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               
               <h3 className="font-medium mb-4">Starred Selections</h3>
               
-              {getSelectionsForCustomer().length === 0 ? (
+              {!activeRoomId ? (
                 <div className="text-center py-8 bg-gray-50 rounded-lg">
-                  <div className="text-gray-500">No starred selections</div>
+                  <div className="text-gray-500">Select a room to view selections</div>
+                </div>
+              ) : selections.length === 0 ? (
+                <div className="text-center py-8 bg-gray-50 rounded-lg">
+                  <div className="text-gray-500">No selections for this room</div>
                 </div>
               ) : (
-                getSelectionsForCustomer().map(selection => (
+                selections.filter(s => s.is_final_choice).map(selection => (
                   <AdminAdjustmentForm key={selection.id} selection={selection} />
                 ))
               )}

@@ -14,10 +14,12 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Star, Scan, Plus, X } from "lucide-react";
 import { QRScanner } from './QRScanner';
-import { Tile, MOCK_TILES } from '@/types';
+import { Tile } from '@/types';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
+import { useTiles, useTileByBarcode } from '@/hooks/useSupabaseQuery';
+import { useAddRoom, useAddTileSelection } from '@/hooks/useSupabaseMutation';
 
 interface RoomProps {
   roomName: string;
@@ -35,19 +37,20 @@ export function RoomTileSelector({ roomName, sqft, onAddTile }: RoomProps) {
   const [selectedTiles, setSelectedTiles] = useState<Tile[]>([]);
   const { toast } = useToast();
   const { currentUser, isAdmin } = useAuth();
+  const { data: tiles = [] } = useTiles();
   
-  const handleScanSuccess = (qrCode: string) => {
+  const handleScanSuccess = (barcode: string) => {
     setScannerOpen(false);
     
-    // Find tile by QR code
-    const tile = MOCK_TILES.find(t => t.qrCode === qrCode && t.isActive);
+    // Find tile by barcode
+    const tile = tiles.find(t => t.barcode === barcode && t.is_active);
     
     if (tile) {
       addTileSelection(tile);
     } else {
       toast({
         title: "Tile Not Found",
-        description: "No matching tile found for this QR code. Please try again or enter manually.",
+        description: "No matching tile found for this barcode. Please try again or enter manually.",
         variant: "destructive"
       });
     }
@@ -59,12 +62,12 @@ export function RoomTileSelector({ roomName, sqft, onAddTile }: RoomProps) {
       { 
         tile, 
         starred: false,
-        enteredRate: isAdmin() ? tile.ratePerSqft : undefined 
+        enteredRate: isAdmin() ? tile.price_per_sqft : undefined 
       }
     ]);
     toast({
       title: "Tile Added",
-      description: `${tile.tileName} (${tile.tileSize}) added to ${roomName}.`
+      description: `${tile.tile_name} (${tile.size}) added to ${roomName}.`
     });
   };
 
@@ -148,7 +151,7 @@ export function RoomTileSelector({ roomName, sqft, onAddTile }: RoomProps) {
                     <DialogTitle>Select Tile</DialogTitle>
                   </DialogHeader>
                   <div className="grid grid-cols-1 gap-2 mt-4">
-                    {MOCK_TILES.filter(t => t.isActive).map((tile) => (
+                    {tiles.filter(t => t.is_active).map((tile) => (
                       <Button 
                         key={tile.id} 
                         variant="outline" 
@@ -156,16 +159,16 @@ export function RoomTileSelector({ roomName, sqft, onAddTile }: RoomProps) {
                         onClick={() => handleManualSelect(tile)}
                       >
                         <div className="flex items-center w-full">
-                          {tile.imageURL && (
+                          {tile.image_url && (
                             <img 
-                              src={tile.imageURL} 
-                              alt={tile.tileName} 
+                              src={tile.image_url} 
+                              alt={tile.tile_name} 
                               className="w-10 h-10 object-cover rounded mr-3"
                             />
                           )}
                           <div className="text-left">
-                            <p className="font-medium">{tile.tileName}</p>
-                            <p className="text-xs text-gray-500">{tile.tileSize} cm • {tile.sqftPerBox} sq.ft/box</p>
+                            <p className="font-medium">{tile.tile_name}</p>
+                            <p className="text-xs text-gray-500">{tile.size} cm • {tile.sqft_per_box} sq.ft/box</p>
                           </div>
                         </div>
                       </Button>
@@ -187,16 +190,16 @@ export function RoomTileSelector({ roomName, sqft, onAddTile }: RoomProps) {
                 </button>
                 
                 <div className="flex items-start gap-3 mb-3">
-                  {selection.tile.imageURL && (
+                  {selection.tile.image_url && (
                     <img 
-                      src={selection.tile.imageURL} 
-                      alt={selection.tile.tileName} 
+                      src={selection.tile.image_url} 
+                      alt={selection.tile.tile_name} 
                       className="w-16 h-16 object-cover rounded"
                     />
                   )}
                   <div>
                     <div className="flex items-center gap-2">
-                      <h4 className="font-medium">{selection.tile.tileName}</h4>
+                      <h4 className="font-medium">{selection.tile.tile_name}</h4>
                       <Button 
                         variant="ghost" 
                         size="sm" 
@@ -210,7 +213,7 @@ export function RoomTileSelector({ roomName, sqft, onAddTile }: RoomProps) {
                       </Button>
                     </div>
                     <p className="text-sm text-gray-500">
-                      {selection.tile.tileSize} cm • {selection.tile.sqftPerBox} sq.ft/box
+                      {selection.tile.size} cm • {selection.tile.sqft_per_box} sq.ft/box
                     </p>
                   </div>
                 </div>
@@ -234,7 +237,7 @@ export function RoomTileSelector({ roomName, sqft, onAddTile }: RoomProps) {
                   <div>
                     <Label className="text-xs">Estimated Boxes</Label>
                     <div className="mt-1 font-medium">
-                      {calculateBoxes(selection.tile.sqftPerBox)}
+                      {calculateBoxes(selection.tile.sqft_per_box)}
                     </div>
                   </div>
                   
@@ -244,9 +247,9 @@ export function RoomTileSelector({ roomName, sqft, onAddTile }: RoomProps) {
                       <div className="mt-1 font-medium">
                         {new Intl.NumberFormat('en-IN').format(
                           calculatePrice(
-                            calculateBoxes(selection.tile.sqftPerBox),
+                            calculateBoxes(selection.tile.sqft_per_box),
                             selection.enteredRate,
-                            selection.tile.sqftPerBox
+                            selection.tile.sqft_per_box
                           )
                         )}
                       </div>
@@ -287,6 +290,7 @@ export function RoomSelector() {
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomSqft, setNewRoomSqft] = useState<number | ''>('');
   const { toast } = useToast();
+  const addRoomMutation = useAddRoom();
 
   const handleAddRoom = () => {
     if (!newRoomName) {

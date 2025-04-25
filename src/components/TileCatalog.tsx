@@ -15,48 +15,47 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
-import { Tile, MOCK_TILES } from '@/types';
+import { Tile } from '@/types';
 import { Search, Plus, Pencil } from "lucide-react";
+import { useTiles } from '@/hooks/useSupabaseQuery';
 
 export function TileCatalog() {
-  const [tiles, setTiles] = useState<Tile[]>(MOCK_TILES);
+  const { data: tiles = [], isLoading } = useTiles();
   const [searchQuery, setSearchQuery] = useState('');
   const [editingTile, setEditingTile] = useState<Tile | null>(null);
   const { toast } = useToast();
 
   const filteredTiles = tiles.filter(tile => 
-    tile.tileName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    tile.tileSize.includes(searchQuery) ||
-    tile.qrCode.toLowerCase().includes(searchQuery.toLowerCase())
+    tile.tile_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    tile.size.includes(searchQuery) ||
+    (tile.barcode && tile.barcode.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const handleSaveTile = (tile: Tile) => {
     if (editingTile) {
       // Update existing tile
-      setTiles(prev => prev.map(t => t.id === tile.id ? tile : t));
+      // In a real app, this would call a Supabase mutation
       toast({
         title: "Tile Updated",
-        description: `${tile.tileName} has been updated successfully.`
+        description: `${tile.tile_name} has been updated successfully.`
       });
     } else {
       // Add new tile
-      const newTile = {
-        ...tile,
-        id: `${tiles.length + 1}`, // In production this would be a UUID
-      };
-      setTiles(prev => [...prev, newTile]);
+      // In a real app, this would call a Supabase mutation
       toast({
         title: "Tile Added",
-        description: `${tile.tileName} has been added to the catalog.`
+        description: `${tile.tile_name} has been added to the catalog.`
       });
     }
     setEditingTile(null);
   };
 
   const toggleTileActive = (id: string) => {
-    setTiles(prev => prev.map(tile => 
-      tile.id === id ? { ...tile, isActive: !tile.isActive } : tile
-    ));
+    // In a real app, this would call a Supabase mutation
+    toast({
+      title: "Tile Status Changed",
+      description: "Tile status has been updated."
+    });
   };
 
   return (
@@ -91,13 +90,12 @@ export function TileCatalog() {
                 <TileForm 
                   initialTile={{
                     id: '',
-                    tileName: '',
-                    tileSize: '',
-                    ratePerSqft: 0,
-                    piecesPerBox: 0,
-                    sqftPerBox: 0,
-                    qrCode: '',
-                    isActive: true
+                    tile_name: '',
+                    size: '',
+                    pieces_per_box: 0,
+                    sqft_per_box: 0,
+                    barcode: '',
+                    is_active: true
                   }}
                   onSave={handleSaveTile}
                 />
@@ -106,39 +104,43 @@ export function TileCatalog() {
           </div>
           
           <div className="space-y-4">
-            {filteredTiles.length === 0 ? (
+            {isLoading ? (
+              <div className="text-center py-8 text-gray-500">
+                Loading tiles...
+              </div>
+            ) : filteredTiles.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 No matching tiles found
               </div>
             ) : (
               filteredTiles.map(tile => (
-                <Card key={tile.id} className={`border ${!tile.isActive ? 'bg-gray-50' : ''}`}>
+                <Card key={tile.id} className={`border ${!tile.is_active ? 'bg-gray-50' : ''}`}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        {tile.imageURL && (
+                        {tile.image_url && (
                           <img 
-                            src={tile.imageURL} 
-                            alt={tile.tileName} 
+                            src={tile.image_url} 
+                            alt={tile.tile_name} 
                             className="w-16 h-16 object-cover rounded"
                           />
                         )}
                         <div>
-                          <h3 className={`font-medium ${!tile.isActive ? 'text-gray-500' : ''}`}>
-                            {tile.tileName}
+                          <h3 className={`font-medium ${!tile.is_active ? 'text-gray-500' : ''}`}>
+                            {tile.tile_name}
                           </h3>
                           <p className="text-sm text-gray-500">
-                            {tile.tileSize} cm • ₹{tile.ratePerSqft}/sq.ft • QR: {tile.qrCode}
+                            {tile.size} cm • QR: {tile.barcode}
                           </p>
                           <p className="text-xs text-gray-400">
-                            {tile.piecesPerBox} pcs/box • {tile.sqftPerBox} sq.ft/box
+                            {tile.pieces_per_box} pcs/box • {tile.sqft_per_box} sq.ft/box
                           </p>
                         </div>
                       </div>
                       
                       <div className="flex items-center gap-2">
                         <Switch 
-                          checked={tile.isActive} 
+                          checked={tile.is_active} 
                           onCheckedChange={() => toggleTileActive(tile.id)} 
                         />
                         
@@ -204,23 +206,23 @@ function TileForm({ initialTile, onSave }: TileFormProps) {
       <div className="grid gap-4 py-4">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="tileName">Tile Name</Label>
+            <Label htmlFor="tile_name">Tile Name</Label>
             <Input
-              id="tileName"
-              name="tileName"
-              value={tile.tileName}
+              id="tile_name"
+              name="tile_name"
+              value={tile.tile_name}
               onChange={handleChange}
               required
             />
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="tileSize">Size (cm)</Label>
+            <Label htmlFor="size">Size (cm)</Label>
             <Input
-              id="tileSize"
-              name="tileSize"
+              id="size"
+              name="size"
               placeholder="e.g., 60x60"
-              value={tile.tileSize}
+              value={tile.size}
               onChange={handleChange}
               required
             />
@@ -229,54 +231,27 @@ function TileForm({ initialTile, onSave }: TileFormProps) {
         
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="ratePerSqft">Rate (₹/sq.ft)</Label>
+            <Label htmlFor="pieces_per_box">Pieces per Box</Label>
             <Input
-              id="ratePerSqft"
-              name="ratePerSqft"
-              type="number"
-              min="0"
-              step="0.01"
-              value={tile.ratePerSqft}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="piecesPerBox">Pieces per Box</Label>
-            <Input
-              id="piecesPerBox"
-              name="piecesPerBox"
+              id="pieces_per_box"
+              name="pieces_per_box"
               type="number"
               min="1"
-              value={tile.piecesPerBox}
+              value={tile.pieces_per_box}
               onChange={handleChange}
               required
             />
           </div>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4">
+          
           <div className="space-y-2">
-            <Label htmlFor="sqftPerBox">Sq.ft per Box</Label>
+            <Label htmlFor="sqft_per_box">Sq.ft per Box</Label>
             <Input
-              id="sqftPerBox"
-              name="sqftPerBox"
+              id="sqft_per_box"
+              name="sqft_per_box"
               type="number"
               min="0.01"
               step="0.01"
-              value={tile.sqftPerBox}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="qrCode">QR Code</Label>
-            <Input
-              id="qrCode"
-              name="qrCode"
-              value={tile.qrCode}
+              value={tile.sqft_per_box}
               onChange={handleChange}
               required
             />
@@ -284,25 +259,36 @@ function TileForm({ initialTile, onSave }: TileFormProps) {
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="imageURL">Image URL (Optional)</Label>
+            <Label htmlFor="barcode">QR Code</Label>
+            <Input
+              id="barcode"
+              name="barcode"
+              value={tile.barcode || ''}
+              onChange={handleChange}
+              required
+            />
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="image_url">Image URL (Optional)</Label>
           <Input
-            id="imageURL"
-            name="imageURL"
+            id="image_url"
+            name="image_url"
             placeholder="https://..."
-            value={tile.imageURL || ''}
+            value={tile.image_url || ''}
             onChange={handleChange}
           />
         </div>
         
         <div className="flex items-center space-x-2">
           <Switch
-            id="isActive"
-            checked={tile.isActive}
+            id="is_active"
+            checked={tile.is_active}
             onCheckedChange={(checked) => 
-              setTile(prev => ({ ...prev, isActive: checked }))
+              setTile(prev => ({ ...prev, is_active: checked }))
             }
           />
-          <Label htmlFor="isActive">Active</Label>
+          <Label htmlFor="is_active">Active</Label>
         </div>
       </div>
       

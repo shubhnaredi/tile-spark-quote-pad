@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Customer, MOCK_CUSTOMERS } from '@/types';
+import { Customer } from '@/types';
 import { Search, Phone, MapPin, Calendar, User, ArrowRight } from "lucide-react";
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { useCustomers } from '@/hooks/useSupabaseQuery';
 
 export function CustomerList() {
-  const [customers, setCustomers] = useState<Customer[]>(MOCK_CUSTOMERS);
+  const { data: customers = [], isLoading } = useCustomers();
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   
@@ -92,7 +93,7 @@ function CustomerCards({ customers, onViewDetails }: CustomerCardsProps) {
               <div className="flex items-center gap-2 mb-1">
                 <h3 className="font-medium">{customer.name}</h3>
                 <Badge variant="outline" className="bg-gray-100">
-                  {customer.dateOfVisit === format(new Date(), 'yyyy-MM-dd') ? 'Today' : ''}
+                  {customer.visit_date === format(new Date(), 'yyyy-MM-dd') ? 'Today' : ''}
                 </Badge>
               </div>
               
@@ -109,14 +110,8 @@ function CustomerCards({ customers, onViewDetails }: CustomerCardsProps) {
                 
                 <div className="flex items-center text-sm text-gray-500">
                   <Calendar className="w-3 h-3 mr-1" />
-                  {new Date(customer.dateOfVisit).toLocaleDateString()}
+                  {new Date(customer.visit_date).toLocaleDateString()}
                 </div>
-                
-                {customer.totalSqft && (
-                  <div className="text-sm text-gray-500">
-                    {customer.totalSqft} sq.ft total area
-                  </div>
-                )}
               </div>
             </div>
             

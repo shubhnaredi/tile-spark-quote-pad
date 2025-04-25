@@ -27,33 +27,62 @@ import { cn } from '@/lib/utils';
 import { Customer } from '@/types';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useAddCustomer } from '@/hooks/useSupabaseMutation';
+
+interface CustomerFormData {
+  name: string;
+  phone: string;
+  area: string;
+  has_chit_photo: boolean;
+  chit_image_url?: string;
+  visit_date: string;
+  salesperson_id?: string;
+}
 
 export function CustomerIntakeForm() {
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<Omit<Customer, 'id'>>();
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<CustomerFormData>();
   const [date, setDate] = useState<Date>(new Date());
   const [uploading, setUploading] = useState(false);
+  const [hasChitPhoto, setHasChitPhoto] = useState(false);
+  const [chitImageUrl, setChitImageUrl] = useState<string | undefined>(undefined);
   const { currentUser } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const addCustomer = useAddCustomer();
   
-  const onSubmit = async (data: Omit<Customer, 'id'>) => {
-    // In production, this would save to Supabase
+  const onSubmit = async (data: CustomerFormData) => {
     try {
-      console.log("Submitting customer data:", {
-        ...data,
-        createdBy: currentUser?.id || '',
-        dateOfVisit: format(date, 'yyyy-MM-dd')
-      });
+      // Convert form data to customer data
+      const customerData: Omit<Customer, 'id' | 'created_at'> = {
+        name: data.name,
+        phone: data.phone,
+        area: data.area,
+        has_chit_photo: hasChitPhoto,
+        chit_image_url: chitImageUrl,
+        salesperson_id: currentUser?.id || '',
+        visit_date: format(date, 'yyyy-MM-dd')
+      };
       
-      // Mock customer creation success
-      toast({
-        title: "Customer Added Successfully",
-        description: `New customer ${data.name} has been added.`,
+      // Use the mutation to add customer
+      addCustomer.mutate(customerData, {
+        onSuccess: () => {
+          toast({
+            title: "Customer Added Successfully",
+            description: `New customer ${data.name} has been added.`,
+          });
+          
+          // Navigate to room selection
+          navigate('/rooms/new');
+        },
+        onError: (error) => {
+          toast({
+            title: "Error Adding Customer",
+            description: error.message || "There was a problem adding the customer.",
+            variant: "destructive",
+          });
+        }
       });
-      
-      // Navigate to room selection with a mock ID
-      navigate('/rooms/new');
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving customer:", error);
       toast({
         title: "Error Adding Customer",
@@ -67,7 +96,9 @@ export function CustomerIntakeForm() {
     setUploading(true);
     // Mock image upload
     setTimeout(() => {
-      setValue('chitPhotoURL', 'https://via.placeholder.com/300?text=Measurement+Chit');
+      const imageUrl = 'https://via.placeholder.com/300?text=Measurement+Chit';
+      setChitImageUrl(imageUrl);
+      setHasChitPhoto(true);
       setUploading(false);
       toast({
         title: "Image Uploaded",
@@ -166,29 +197,10 @@ export function CustomerIntakeForm() {
                 {uploading ? "Uploading..." : "Upload Photo"}
               </Button>
             </div>
-            {watch("chitPhotoURL") && (
+            {chitImageUrl && (
               <div className="mt-2 border rounded p-2 text-sm text-green-600">
                 Image uploaded successfully
               </div>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="totalSqft">Total Area (sq.ft.) if known</Label>
-            <Input 
-              id="totalSqft" 
-              type="number" 
-              placeholder="Optional" 
-              {...register("totalSqft", { 
-                valueAsNumber: true,
-                min: {
-                  value: 1,
-                  message: "Area must be positive"
-                }
-              })}
-            />
-            {errors.totalSqft && (
-              <p className="text-xs text-red-500">{errors.totalSqft.message}</p>
             )}
           </div>
 
