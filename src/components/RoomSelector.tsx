@@ -62,7 +62,7 @@ export function RoomTileSelector({ roomName, sqft, onAddTile }: RoomProps) {
       { 
         tile, 
         starred: false,
-        enteredRate: isAdmin() ? tile.price_per_sqft : undefined 
+        enteredRate: isAdmin() ? undefined : undefined 
       }
     ]);
     toast({
@@ -102,7 +102,8 @@ export function RoomTileSelector({ roomName, sqft, onAddTile }: RoomProps) {
     return Math.ceil(sqft / tileSqftPerBox);
   };
 
-  const calculatePrice = (boxes: number, rate: number, sqftPerBox: number) => {
+  const calculatePrice = (boxes: number, rate: number | undefined, sqftPerBox: number) => {
+    if (!rate) return 0;
     return boxes * rate * sqftPerBox;
   };
 
