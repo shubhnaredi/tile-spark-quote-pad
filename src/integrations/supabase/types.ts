@@ -9,7 +9,202 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      customers: {
+        Row: {
+          area: string
+          chit_image_url: string | null
+          created_at: string | null
+          has_chit_photo: boolean | null
+          id: string
+          name: string
+          phone: string
+          salesperson_id: string | null
+          visit_date: string | null
+        }
+        Insert: {
+          area: string
+          chit_image_url?: string | null
+          created_at?: string | null
+          has_chit_photo?: boolean | null
+          id?: string
+          name: string
+          phone: string
+          salesperson_id?: string | null
+          visit_date?: string | null
+        }
+        Update: {
+          area?: string
+          chit_image_url?: string | null
+          created_at?: string | null
+          has_chit_photo?: boolean | null
+          id?: string
+          name?: string
+          phone?: string
+          salesperson_id?: string | null
+          visit_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_salesperson_id_fkey"
+            columns: ["salesperson_id"]
+            isOneToOne: false
+            referencedRelation: "salespersons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rooms: {
+        Row: {
+          created_at: string | null
+          customer_id: string
+          id: string
+          notes: string | null
+          room_name: string
+          total_sqft: number
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id: string
+          id?: string
+          notes?: string | null
+          room_name: string
+          total_sqft: number
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string
+          id?: string
+          notes?: string | null
+          room_name?: string
+          total_sqft?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rooms_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      salespersons: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      tile_selections: {
+        Row: {
+          admin_adjusted_boxes: number | null
+          admin_notes: string | null
+          created_at: string | null
+          filler_quantity: number | null
+          id: string
+          is_final_choice: boolean | null
+          price_per_sqft: number | null
+          room_id: string
+          sqft_required: number
+          status: string | null
+          tile_id: string
+          transport_charge: number | null
+        }
+        Insert: {
+          admin_adjusted_boxes?: number | null
+          admin_notes?: string | null
+          created_at?: string | null
+          filler_quantity?: number | null
+          id?: string
+          is_final_choice?: boolean | null
+          price_per_sqft?: number | null
+          room_id: string
+          sqft_required: number
+          status?: string | null
+          tile_id: string
+          transport_charge?: number | null
+        }
+        Update: {
+          admin_adjusted_boxes?: number | null
+          admin_notes?: string | null
+          created_at?: string | null
+          filler_quantity?: number | null
+          id?: string
+          is_final_choice?: boolean | null
+          price_per_sqft?: number | null
+          room_id?: string
+          sqft_required?: number
+          status?: string | null
+          tile_id?: string
+          transport_charge?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tile_selections_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tile_selections_tile_id_fkey"
+            columns: ["tile_id"]
+            isOneToOne: false
+            referencedRelation: "tiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tiles: {
+        Row: {
+          barcode: string | null
+          created_at: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          pieces_per_box: number
+          size: string
+          sqft_per_box: number
+          tile_name: string
+        }
+        Insert: {
+          barcode?: string | null
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          pieces_per_box: number
+          size: string
+          sqft_per_box: number
+          tile_name: string
+        }
+        Update: {
+          barcode?: string | null
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          pieces_per_box?: number
+          size?: string
+          sqft_per_box?: number
+          tile_name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
